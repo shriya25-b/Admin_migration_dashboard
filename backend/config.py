@@ -1,9 +1,8 @@
 from flask_pymongo import PyMongo
 
-mongo = PyMongo()  # Initialize MongoDB globally
+mongo = PyMongo()  # ✅ Initialize PyMongo without app
 
 def init_db(app):
-    """Initialize MongoDB with Flask app."""
-    app.config["MONGO_URI"] = "mongodb://localhost:27017/migration_dashboard"  # Local MongoDB
-    mongo.init_app(app)  # Properly attach MongoDB to Flask app
-    return mongo  # Return MongoDB instance
+    app.config["MONGO_URI"] = "mongodb://localhost:27017/migration_dashboard"
+    mongo.init_app(app)  # ✅ Initialize with app context
+    return mongo

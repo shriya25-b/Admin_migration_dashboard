@@ -1,137 +1,125 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
-import axios from 'axios';
-import { Student, DashboardStats } from '../types';
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { fetchStudents, addStudent, updateStudent, deleteStudent } from "../api";
+
+interface StatsType {
+  totalStudents: number;
+  pendingApplications: number;
+  approvedApplications: number;
+  rejectedApplications: number;
+  stateDistribution: Record<string, number>;
+  yearlyApplications: Record<string, number>;
+  educationDistribution: Record<string, number>;
+}
 
 interface StudentContextType {
-  students: Student[];
-  stats: DashboardStats | null;
+  students: any[];
   loading: boolean;
-  error: string | null;
-  fetchStudents: () => Promise<void>;
-  fetchStats: () => Promise<void>;
-  addStudent: (student: Omit<Student, 'id'>) => Promise<void>;
-  updateStudent: (id: string, student: Partial<Student>) => Promise<void>;
-  deleteStudent: (id: string) => Promise<void>;
-  uploadCSV: (data: any[]) => Promise<void>;
+  stats: StatsType | null;
+  fetchAllStudents: () => void;
+  addNewStudent: (student: any) => Promise<void>;
+  updateExistingStudent: (aadharNo: string, updatedData: any) => Promise<void>;
+  deleteExistingStudent: (aadharNo: string) => Promise<void>;
 }
 
 const StudentContext = createContext<StudentContextType | undefined>(undefined);
 
-const API_URL = 'http://localhost:5000/api';
-
 export const StudentProvider = ({ children }: { children: ReactNode }) => {
-  const [students, setStudents] = useState<Student[]>([]);
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [students, setStudents] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [stats, setStats] = useState<StatsType | null>(null);
 
-  const fetchStudents = async () => {
+  // ✅ Compute statistics from student data
+  const calculateStats = (studentsData: any[]) => {
+    const totalStudents = studentsData.length;
+  
+    // Classify applications based on Education & Duration of Living
+    const pendingApplications = studentsData.filter(student => student["Duration of Living"] && parseInt(student["Duration of Living"]) < 2).length;
+    const approvedApplications = studentsData.filter(student => student["Education"] && student["Education"] !== "Diploma").length;
+    const rejectedApplications = totalStudents - (pendingApplications + approvedApplications); // Remaining as rejected
+  
+    const stateDistribution: Record<string, number> = {};
+    const yearlyApplications: Record<string, number> = {};
+    const educationDistribution: Record<string, number> = {};
+  
+    studentsData.forEach(student => {
+      stateDistribution[student.State] = (stateDistribution[student.State] || 0) + 1;
+  
+      const year = new Date().getFullYear() - Math.floor(parseInt(student["Duration of Living"] || "0") / 12);
+      yearlyApplications[year] = (yearlyApplications[year] || 0) + 1;
+  
+      educationDistribution[student.Education] = (educationDistribution[student.Education] || 0) + 1;
+    });
+  
+    return {
+      totalStudents,
+      pendingApplications,
+      approvedApplications,
+      rejectedApplications,
+      stateDistribution,
+      yearlyApplications,
+      educationDistribution,
+    };
+  };
+  
+
+  // ✅ Fetch Students & Compute Stats
+  const fetchAllStudents = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_URL}/students`);
-      setStudents(response.data);
-      setError(null);
-    } catch (err) {
-      setError('Failed to fetch students');
-      console.error(err);
+      const data = await fetchStudents();
+      setStudents(data);
+      setStats(calculateStats(data)); // ✅ Compute stats after fetching
+    } catch (error) {
+      console.error("❌ Error fetching students:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchStats = async () => {
-    setLoading(true);
+  // ✅ Add Student (Then Refresh List & Stats)
+  const addNewStudent = async (student: any) => {
     try {
-      const response = await axios.get(`${API_URL}/stats`);
-      setStats(response.data);
-      setError(null);
-    } catch (err) {
-      setError('Failed to fetch statistics');
-      console.error(err);
-    } finally {
-      setLoading(false);
+      await addStudent(student);
+      await fetchAllStudents();
+    } catch (error) {
+      console.error("❌ Error adding student:", error);
     }
   };
 
-  const addStudent = async (student: Omit<Student, 'id'>) => {
-    setLoading(true);
+  // ✅ Update Student (Then Refresh List & Stats)
+  const updateExistingStudent = async (aadharNo: string, updatedData: any) => {
     try {
-      const response = await axios.post(`${API_URL}/students`, student);
-      setStudents([...students, response.data]);
-      await fetchStats(); // Update stats after adding a student
-      setError(null);
-    } catch (err) {
-      setError('Failed to add student');
-      console.error(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      await updateStudent(aadharNo, updatedData);
+      await fetchAllStudents();
+    } catch (error) {
+      console.error("❌ Error updating student:", error);
     }
   };
 
-  const updateStudent = async (id: string, student: Partial<Student>) => {
-    setLoading(true);
+  // ✅ Delete Student (Then Refresh List & Stats)
+  const deleteExistingStudent = async (aadharNo: string) => {
     try {
-      const response = await axios.put(`${API_URL}/students/${id}`, student);
-      setStudents(
-        students.map((s) => (s.id === id ? { ...s, ...response.data } : s))
-      );
-      await fetchStats(); // Update stats after updating a student
-      setError(null);
-    } catch (err) {
-      setError('Failed to update student');
-      console.error(err);
-      throw err;
-    } finally {
-      setLoading(false);
+      await deleteStudent(aadharNo);
+      await fetchAllStudents();
+    } catch (error) {
+      console.error("❌ Error deleting student:", error);
     }
   };
 
-  const deleteStudent = async (id: string) => {
-    setLoading(true);
-    try {
-      await axios.delete(`${API_URL}/students/${id}`);
-      setStudents(students.filter((s) => s.id !== id));
-      await fetchStats(); // Update stats after deleting a student
-      setError(null);
-    } catch (err) {
-      setError('Failed to delete student');
-      console.error(err);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const uploadCSV = async (data: any[]) => {
-    setLoading(true);
-    try {
-      await axios.post(`${API_URL}/students/upload`, { data });
-      await fetchStudents(); // Refresh student list
-      await fetchStats(); // Update stats after CSV upload
-      setError(null);
-    } catch (err) {
-      setError('Failed to upload CSV');
-      console.error(err);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    fetchAllStudents();
+  }, []);
 
   return (
     <StudentContext.Provider
       value={{
         students,
-        stats,
         loading,
-        error,
-        fetchStudents,
-        fetchStats,
-        addStudent,
-        updateStudent,
-        deleteStudent,
-        uploadCSV,
+        stats,
+        fetchAllStudents,
+        addNewStudent,
+        updateExistingStudent,
+        deleteExistingStudent,
       }}
     >
       {children}
@@ -141,8 +129,105 @@ export const StudentProvider = ({ children }: { children: ReactNode }) => {
 
 export const useStudents = () => {
   const context = useContext(StudentContext);
-  if (context === undefined) {
-    throw new Error('useStudents must be used within a StudentProvider');
+  if (!context) {
+    throw new Error("useStudents must be used within a StudentProvider");
   }
   return context;
 };
+
+
+
+
+
+// import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+// import { fetchStudents, addStudent, updateStudent, deleteStudent } from "../api";
+
+// interface StudentContextType {
+//   students: any[];
+//   loading: boolean;
+//   fetchAllStudents: () => void;
+//   addNewStudent: (student: any) => Promise<void>;
+//   updateExistingStudent: (aadharNo: string, updatedData: any) => Promise<void>;
+//   deleteExistingStudent: (aadharNo: string) => Promise<void>;
+// }
+
+// const StudentContext = createContext<StudentContextType | undefined>(undefined);
+
+// export const StudentProvider = ({ children }: { children: ReactNode }) => {
+//   const [students, setStudents] = useState<any[]>([]);
+//   const [loading, setLoading] = useState<boolean>(true);
+
+//   // ✅ Fetch Students from API
+//   const fetchAllStudents = async () => {
+//     setLoading(true);
+//     try {
+//       const data = await fetchStudents();
+//       console.log("✅ Fetched Students:", data);
+//       setStudents(data);
+//     } catch (error) {
+//       console.error("❌ Error fetching students:", error);
+//     } finally {
+//       setLoading(false);
+//     }
+//   };
+
+//   // ✅ Add Student (Then Refresh List)
+//   const addNewStudent = async (student: any) => {
+//     try {
+//       await addStudent(student);
+//       console.log("✅ Student Added");
+//       await fetchAllStudents(); // Refresh UI after adding
+//     } catch (error) {
+//       console.error("❌ Error adding student:", error);
+//     }
+//   };
+
+//   // ✅ Update Student (Then Refresh List)
+//   const updateExistingStudent = async (aadharNo: string, updatedData: any) => {
+//     try {
+//       await updateStudent(aadharNo, updatedData);
+//       console.log("✅ Student Updated");
+//       await fetchAllStudents(); // Refresh UI after updating
+//     } catch (error) {
+//       console.error("❌ Error updating student:", error);
+//     }
+//   };
+
+//   // ✅ Delete Student (Then Refresh List)
+//   const deleteExistingStudent = async (aadharNo: string) => {
+//     try {
+//       await deleteStudent(aadharNo);
+//       console.log("✅ Student Deleted");
+//       await fetchAllStudents(); // Refresh UI after deleting
+//     } catch (error) {
+//       console.error("❌ Error deleting student:", error);
+//     }
+//   };
+
+//   useEffect(() => {
+//     fetchAllStudents();
+//   }, []);
+
+//   return (
+//     <StudentContext.Provider
+//       value={{
+//         students,
+//         loading,
+//         fetchAllStudents,
+//         addNewStudent,
+//         updateExistingStudent,
+//         deleteExistingStudent,
+//       }}
+//     >
+//       {children}
+//     </StudentContext.Provider>
+//   );
+// };
+
+// export const useStudents = () => {
+//   const context = useContext(StudentContext);
+//   if (!context) {
+//     throw new Error("useStudents must be used within a StudentProvider");
+//   }
+//   return context;
+// };

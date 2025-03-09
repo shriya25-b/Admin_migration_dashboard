@@ -8,6 +8,15 @@ export interface Student {
   applicationDate: string;
   notes?: string;
 }
+export interface Student {
+  "Aadhar No": string;
+  Name: string;
+  Email: string;
+  "Migration From City": string;
+  State: string;
+  Education: string;
+  "Duration of Living": string;
+}
 
 export interface User {
   id: string;

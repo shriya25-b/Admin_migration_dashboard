@@ -1,73 +1,36 @@
-import { useState } from 'react';
-import { Upload, Button, message, Card, Table, Alert, Spin } from 'antd';
-import { UploadOutlined, FileExcelOutlined } from '@ant-design/icons';
-import { useStudents } from '../context/StudentContext';
-import Papa from 'papaparse';
+import { useState } from "react";
+import { Upload, message, Card, Alert } from "antd";
+import { UploadOutlined } from "@ant-design/icons";
+import axios from "axios";
 
 const UploadCSV = () => {
-  const { uploadCSV, loading } = useStudents();
-  const [csvData, setCsvData] = useState<any[]>([]);
-  const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
-  const [previewVisible, setPreviewVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleFileUpload = (file: File) => {
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        if (results.data && results.data.length > 0) {
-          setCsvData(results.data);
-          setCsvHeaders(results.meta.fields || []);
-          setPreviewVisible(true);
-          message.success(`${file.name} parsed successfully`);
-        } else {
-          message.error('The CSV file is empty or invalid');
-        }
-      },
-      error: (error) => {
-        message.error(`Error parsing CSV: ${error.message}`);
-      }
-    });
-    
-    // Prevent default upload behavior
-    return false;
-  };
-
-  const handleUpload = async () => {
-    if (csvData.length === 0) {
-      message.error('No data to upload');
-      return;
-    }
+  const handleFileUpload = async (file: File) => {
+    setLoading(true);
+    const formData = new FormData();
+    formData.append("file", file);
 
     try {
-      await uploadCSV(csvData);
-      message.success('CSV data uploaded successfully');
-      setCsvData([]);
-      setCsvHeaders([]);
-      setPreviewVisible(false);
-    } catch (error) {
-      message.error('Failed to upload CSV data');
+      const response = await axios.post("http://127.0.0.1:5000/api/upload-csv", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      message.success(response.data.message);
+    } catch (error: any) {
+      message.error(error.response?.data?.error || "Failed to upload CSV.");
+    } finally {
+      setLoading(false);
     }
+    
+    return false; // Prevents default upload behavior
   };
 
-  const columns = csvHeaders.map(header => ({
-    title: header,
-    dataIndex: header,
-    key: header,
-    ellipsis: true,
-  }));
-
   return (
-    <div>
-      <h1>Upload Student Data</h1>
-      
-      <Card style={{ marginBottom: 24 }}>
-        <div style={{ textAlign: 'center', marginBottom: 16 }}>
-          <FileExcelOutlined style={{ fontSize: 48, color: '#52c41a', marginBottom: 16 }} />
-          <h2>Upload CSV File</h2>
-          <p>Upload a CSV file containing student migration data</p>
-        </div>
-        
+    <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", background: "#f0f2f5" }}>
+      <Card style={{ width: 500, textAlign: "center", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)" }}>
+        <h2>Upload Student CSV</h2>
+
         <Upload.Dragger
           name="file"
           accept=".csv"
@@ -79,58 +42,28 @@ const UploadCSV = () => {
             <UploadOutlined />
           </p>
           <p className="ant-upload-text">Click or drag file to this area to upload</p>
-          <p className="ant-upload-hint">
-            Support for a single CSV file upload. Make sure your CSV has the required columns.
-          </p>
+          <p className="ant-upload-hint">Only CSV files are allowed.</p>
         </Upload.Dragger>
-        
-        <div style={{ marginTop: 16 }}>
-          <Alert
-            message="Required CSV Format"
-            description={
-              <ul>
-                <li>name - Student's full name</li>
-                <li>email - Student's email address</li>
-                <li>currentSchool - Current school name</li>
-                <li>targetSchool - Target school name</li>
-                <li>status - Application status (pending, approved, rejected)</li>
-                <li>applicationDate - Date of application (YYYY-MM-DD)</li>
-                <li>notes - Additional notes (optional)</li>
-              </ul>
-            }
-            type="info"
-            showIcon
-          />
-        </div>
+
+        <Alert
+          message="Required CSV Format"
+          description={
+            <ul style={{ textAlign: "left" }}>
+              <li>Name - Student's full name</li>
+              <li>Email - Student's email address</li>
+              <li>Gender - Male/Female/Other</li>
+              <li>Aadhar No - 12-digit unique ID</li>
+              <li>Migration From City - City they migrated from</li>
+              <li>State - State they migrated from</li>
+              <li>Education - UG/PG/PhD/Diploma</li>
+              <li>Duration of Living - How long they have lived in Pune</li>
+            </ul>
+          }
+          type="info"
+          showIcon
+          style={{ marginTop: 16 }}
+        />
       </Card>
-      
-      {previewVisible && (
-        <Card title="CSV Preview" style={{ marginBottom: 24 }}>
-          <div style={{ marginBottom: 16 }}>
-            <Button
-              type="primary"
-              onClick={handleUpload}
-              loading={loading}
-              disabled={csvData.length === 0}
-            >
-              Upload Data
-            </Button>
-          </div>
-          
-          {loading ? (
-            <Spin tip="Uploading..." />
-          ) : (
-            <Table
-              dataSource={csvData}
-              columns={columns}
-              rowKey={(record, index) => index.toString()}
-              pagination={{ pageSize: 5 }}
-              scroll={{ x: 'max-content' }}
-              size="small"
-            />
-          )}
-        </Card>
-      )}
     </div>
   );
 };
