@@ -103,10 +103,6 @@ Want to contribute? Follow these steps:
 ## 📜 **License**
 This project is licensed under the **MIT License**.
 
----
 
-## 💬 **Contact**
-For queries or contributions, reach out:
-📧 Email: **yadneshingale97@gmail.com**  
-🐙 GitHub: **(https://github.com/Yaduuuu)**
+
 
