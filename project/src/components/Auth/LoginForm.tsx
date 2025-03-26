@@ -28,12 +28,21 @@ const LoginForm = () => {
       display: 'flex', 
       justifyContent: 'center', 
       alignItems: 'center', 
-      minHeight: '100vh',
-      background: '#f0f2f5',
+      height: '100vh', 
+      width: '100vw', 
+      backgroundImage: 'url("/pune1.webp")', 
+      backgroundSize: '100% auto', // ✅ Fit width fully, auto height
+      backgroundPosition: 'top center', // ✅ Align to top
+      backgroundRepeat: 'no-repeat',
+      backgroundAttachment: 'fixed', 
+      overflow: 'hidden',
+      
     }}>
-      <Card 
-        style={{ 
-          width: 400, 
+    
+    
+      <Card
+        style={{
+          width: 400,
           boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
           borderRadius: '8px',
         }}
@@ -47,9 +56,9 @@ const LoginForm = () => {
               Admin Login
             </Title>
           </div>
-          
+
           {error && <Alert message={error} type="error" showIcon />}
-          
+
           <Form
             name="login"
             initialValues={{ remember: true }}
@@ -61,26 +70,26 @@ const LoginForm = () => {
               name="username"
               rules={[{ required: true, message: 'Please input your username!' }]}
             >
-              <Input 
-                prefix={<UserOutlined />} 
-                placeholder="Username" 
+              <Input
+                prefix={<UserOutlined />}
+                placeholder="Username"
               />
             </Form.Item>
-            
+
             <Form.Item
               name="password"
               rules={[{ required: true, message: 'Please input your password!' }]}
             >
-              <Input.Password 
-                prefix={<LockOutlined />} 
-                placeholder="Password" 
+              <Input.Password
+                prefix={<LockOutlined />}
+                placeholder="Password"
               />
             </Form.Item>
-            
+
             <Form.Item>
-              <Button 
-                type="primary" 
-                htmlType="submit" 
+              <Button
+                type="primary"
+                htmlType="submit"
                 loading={loading}
                 block
               >
